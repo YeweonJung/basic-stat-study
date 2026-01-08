@@ -7,4 +7,3 @@ https://html-preview.github.io/?url=https://github.com/YeweonJung/basic-stat-stu
 
 # 🩷 4) correlation analysis & linear regression analysis
 
-d
