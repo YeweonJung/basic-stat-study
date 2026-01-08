@@ -1,0 +1,129 @@
+---
+title: "day1"
+author: "yeweon"
+format: 
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 3 
+    number-sections: true
+    smooth-scroll: true
+    pdf:
+      toc: true
+      toc-depth: 3
+      number-sections: true
+editor: visual
+---
+
+# intro
+
+## 변수 할당
+
+```{r}
+a = 10
+a <- 10
+print(a)
+```
+
+## 변수 연산
+
+```{r}
+b = 3
+print(a+b)
+print(a-b)
+print(a*b)
+
+```
+
+# data analysis
+
+## package load
+
+\`base\` 패키지 불러오기
+
+```{r}
+require(base)
+```
+
+## data load
+
+'iris' 데이터넷 로드
+
+```{r}
+data = iris
+```
+
+## check variable name
+
+변수 이름 확인하기
+
+```{r}
+names(data)
+```
+
+## data sammary
+
+데이터 종류에따른 데이터 요약
+
+### Numerical data
+
+수치형 데이터 요약
+
+```{r}
+summary(data$Sepal.Length)
+min(data$Sepal.Length) #최솟값
+max(data$Sepal.Length) #최댓값
+mean(data$Sepal.Length) #평균
+median(data$Sepal.Length) #중위수
+```
+
+수치형 데이터 요약2
+
+```{r}
+x = data$Sepal.Length
+summary(x)
+min(x)
+max(x)
+
+```
+
+### categorical data
+
+범주형 데이터 요약
+
+```{r}
+y = data$Species
+count = table(y)
+print(count)
+```
+
+## 시각화
+
+### 수치형 데이터
+
+수치형 데이터의 산점도(scatter plot)
+
+```{r}
+plot(x)
+```
+
+```{r}
+boxplot(x)
+```
+
+수치형 데이터 상자그림
+
+## Categorial data
+
+```{r}
+y = data$Species
+count = table(y)
+pie(count)
+barplot(count)
+```
+
+파이 차트
+
+바 플롯 (막대그래프)
+
+## statistics analysis
