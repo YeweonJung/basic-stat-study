@@ -1,0 +1,2 @@
+Dimension: 91 x 109 x 91 x 10
+Voxel: 46 54 46
