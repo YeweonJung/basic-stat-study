@@ -1,0 +1,277 @@
+---
+title: "fMRI분석"
+format: html
+editor: visual
+---
+
+```{r}
+library(oro.nifti)
+# AAL3v1 다운로드 (116 ROI)
+url <- "https://www.gin.cnrs.fr/wp-content/uploads/2021/09/AAL3v1.nii.gz"
+download.file(url, "AAL3v1.nii.gz", mode="wb")
+aal_atlas <- readNIfTI("AAL3v1.nii.gz")
+table(aal_atlas)  # ROI 레이블 분포 확인 (116개)
+
+```
+
+library(oro.nifti) \# AAL3v1 다운로드 (116 ROI) url \<- "[https://www.gin.cnrs.fr/wp-content/uploads/2021/09/AAL3v1.nii.gz"](https://www.gin.cnrs.fr/wp-content/uploads/2021/09/AAL3v1.nii.gz") download.file(url, "AAL3v1.nii.gz", mode="wb") aal_atlas \<- readNIfTI("AAL3v1.nii.gz") table(aal_atlas) \# ROI 레이블 분포 확인 (116개)
+
+```{r}
+library(oro.nifti)
+# AAL 원본 (90 ROI, 안정적)
+url <- "http://resource.lifescisite.com/share/AAL.nii.gz"  # 또는
+# GitHub raw (AAL_SPM12)
+url <- "https://github.com/Neurita/std_brains/raw/master/atlases/aal_SPM12/aal/atlas/AAL.nii.gz"
+
+tryCatch({
+  download.file(url, "AAL.nii.gz", mode="wb")
+  aal_atlas <- readNIfTI("AAL.nii.gz")
+  cat("✅ AAL 다운로드 성공! dim:", dim(aal_atlas), "\n")
+}, error = function(e) cat("링크 실패, 다음으로\n"))
+```
+
+```{r}
+# fmri_img을 4x4x4=64 pseudo-ROI로 분할 (테스트용)
+dim_fmri <- dim(fmri_img)
+nx <- 4; ny <- 4; nz <- 4
+n_rois <- nx * ny * nz  # 64
+roi_timeseries <- array(NA, dim=c(dim_fmri[4], n_rois))
+
+roi_idx <- 1
+for(ix in seq(1, dim_fmri[1], by=dim_fmri[1]/nx)) {
+  for(iy in seq(1, dim_fmri[2], by=dim_fmri[2]/ny)) {
+    for(iz in seq(1, dim_fmri[3], by=dim_fmri[3]/nz)) {
+      ex <- min(ix + dim_fmri[1]/nx - 1, dim_fmri[1])
+      ey <- min(iy + dim_fmri[2]/ny - 1, dim_fmri[2])
+      ez <- min(iz + dim_fmri[3]/nz - 1, dim_fmri[3])
+      roi_data <- fmri_img[ix:ex, iy:ey, iz:ez, ]
+      roi_timeseries[, roi_idx] <- apply(roi_data, 4, mean, na.rm=TRUE)
+      roi_idx <- roi_idx + 1
+    }
+  }
+}
+print(dim(roi_timeseries))  # [time, 64]
+```
+
+```{r}
+library(corrplot)
+fc_matrix <- cor(t(roi_timeseries))
+png("pseudo_roi_fc.png", width=1000, height=900)
+corrplot(fc_matrix, method="color", type="upper", order="hclust")
+dev.off()
+cat("✅ Pseudo-ROI FC 완료! atlas 문제 해결됨\nlist.files(pattern='fc|csv')\n")
+```
+
+```{r}
+library(igraph)
+g <- graph_from_adjacency_matrix(fc_matrix > 0.25, mode="undirected")
+degree_centrality <- degree(g)
+hist(degree_centrality, main="ROI Degree Centrality")
+```
+
+```{r}
+# 1. 연결 강도 분포 t-test (ROI1 전체 타겟 vs mu=0.3)
+roi1_connections <- fc_matrix[1, -1]  # ROI1의 다른 ROI들과 연결 (65개)
+t.test(roi1_connections, mu=0.3)  # 충분한 관측값!
+
+# 2. 네트워크 수준 t-test (상/하삼분위 연결 비교)
+upper_tri <- fc_matrix[upper.tri(fc_matrix)]
+strong_fc <- upper_tri[upper_tri > 0.3]
+weak_fc <- upper_tri[upper_tri < 0.1]
+t.test(strong_fc, weak_fc, var.equal=FALSE)  # 강한 vs 약한 연결
+```
+
+```{r}
+# 가상 그룹 데이터 (실제 피험자 FC 행렬 여러 개 있을 때)
+# subj_fc1, subj_fc2 <- list of fc_matrices
+group1_roi12 <- c(0.45, 0.52)  # 피험자1,2 ROI1-2 연결
+group2_roi12 <- c(0.28, 0.35)
+t.test(group1_roi12, group2_roi12)  # 그룹 차이 검정
+```
+
+```{r}
+# 1. 모든 파일 정리 (300 DPI 고해상도)
+png("fmri_analysis_results.png", width=2000, height=1200, res=300)
+par(mfrow=c(2,2), mar=c(4,4,2,1))
+matplot(roi_timeseries[,1:8], type='l', col=1:8, lwd=1.5, main="ROI BOLD (1-8)")
+corrplot(fc_matrix, method="color", type="upper", order="hclust", 
+         tl.cex=0.6, title="FC Matrix", mar=c(0,0,1,0))
+hist(degree_centrality, main="Degree Centrality", xlab="Degree")
+plot(g, vertex.size=3, vertex.label=NA, main="Network Graph")
+dev.off()
+
+# 2. CSV 압축 저장
+write.csv(roi_timeseries, "roi_timeseries.csv.gz", row.names=FALSE)
+write.csv(fc_matrix, "fc_matrix.csv.gz", row.names=TRUE)
+
+# 3. 요약 보고서
+summary_stats <- data.frame(
+  ROIs = ncol(roi_timeseries),
+  Timepoints = nrow(roi_timeseries),
+  Mean_FC = mean(fc_matrix[upper.tri(fc_matrix)]),
+  Max_FC = max(fc_matrix)
+)
+write.csv(summary_stats, "analysis_summary.csv")
+cat("✅ 저장 완료!\nlist.files(pattern='png|csv|gz')\n")[web:82][web:86]
+```
+
+```{r}
+# FC 연결 분포 t-test (안전 버전)
+if(exists("fc_matrix")) {
+  roi1_con <- fc_matrix[1, -1]  # ROI1 연결들
+  print(length(roi1_con))  # 63 출력 확인
+  result <- t.test(roi1_con, mu=0.3)
+  print(result)  # p-value 등 출력
+} else {
+  cat("fc_matrix 재생성 필요\n")
+}
+```
+
+```{r}
+# 1. 모든 파일 정리 (300 DPI 고해상도)
+png("fmri_analysis_results.png", width=2000, height=1200, res=300)
+par(mfrow=c(2,2), mar=c(4,4,2,1))
+matplot(roi_timeseries[,1:8], type='l', col=1:8, lwd=1.5, main="ROI BOLD (1-8)")
+corrplot(fc_matrix, method="color", type="upper", order="hclust", 
+         tl.cex=0.6, title="FC Matrix", mar=c(0,0,1,0))
+hist(degree_centrality, main="Degree Centrality", xlab="Degree")
+plot(g, vertex.size=3, vertex.label=NA, main="Network Graph")
+dev.off()
+
+# 2. CSV 압축 저장
+write.csv(roi_timeseries, "roi_timeseries.csv.gz", row.names=FALSE)
+write.csv(fc_matrix, "fc_matrix.csv.gz", row.names=TRUE)
+
+# 3. 요약 보고서
+summary_stats <- data.frame(
+  ROIs = ncol(roi_timeseries),
+  Timepoints = nrow(roi_timeseries),
+  Mean_FC = mean(fc_matrix[upper.tri(fc_matrix)]),
+  Max_FC = max(fc_matrix)
+)
+write.csv(summary_stats, "analysis_summary.csv")
+```
+
+```{r}
+cat("=== 전체 파이프라인 요약 ===\n")
+cat("- fmri_img dim:", paste(dim(fmri_img), collapse=" x "), "\n")
+cat("- ROI 수:", ncol(roi_timeseries), "\n")
+cat("- FC 평균:", round(mean(fc_matrix[upper.tri(fc_matrix)]), 3), "\n")
+cat("- 생성 파일:", paste(list.files(pattern="fc|roi|png"), collapse=", "), "\n")
+```
+
+```{r}
+library(igraph)
+g <- graph_from_adjacency_matrix(fc_matrix > 0.25, mode="undirected", weighted=TRUE)
+
+# 업데이트된 메트릭스 (igraph 2.0+)
+metrics <- data.frame(
+  Clustering = transitivity(g, type="global"),
+  Modularity = modularity(cluster_louvain(g)),
+  MeanDistance = mean_distance(g, weights=E(g)$weight),  # 변경
+  GlobalEff = global_efficiency(g),  # efficiency() → global_efficiency()
+  LocalEff_mean = mean(local_efficiency(g))
+)
+print(round(metrics, 3))
+write.csv(metrics, "network_metrics.csv")
+```
+
+```{r}
+png("brain_network.png", width=1200, height=900, res=150)
+plot(g, vertex.size=4, vertex.label=NA, edge.width=E(g)$weight*2,
+     edge.color="gray", layout=layout_with_fr, main="rs-fMRI Brain Network")
+dev.off()
+```
+
+```{r}
+library(igraph)
+g <- graph_from_adjacency_matrix(fc_matrix > 0.2, mode="undirected", weighted=TRUE)
+
+metrics <- data.frame(
+  Clustering_Coef = transitivity(g, type="global"),
+  Modularity_Q = modularity(cluster_louvain(g)),
+  Mean_Path_Length = mean_distance(g),
+  Global_Efficiency = global_efficiency(g),
+  Mean_Local_Eff = mean(local_efficiency(g))
+)
+print(metrics)
+write.csv(metrics, "graph_metrics.csv")
+
+```
+
+```{r}
+# Top 10 허브 (degree centrality)
+hub_scores <- order(degree(g), decreasing=TRUE)[1:10]
+cat("Top Hubs:", hub_scores, "\n")
+
+# 커뮤니티
+communities <- membership(cluster_louvain(g))
+table(communities)
+```
+
+```{r}
+# FC 유의성 (1000회 permutation)
+set.seed(123)
+null_fc <- array(dim=dim(fc_matrix), 
+                 replicate(1000, cor(t(roi_timeseries[sample(nrow(roi_timeseries)), sample(ncol(roi_timeseries))]))))
+p_matrix <- apply(fc_matrix, 2, function(x) 
+  colMeans(abs(null_fc) >= abs(x), na.rm=TRUE))
+significant_edges <- which(p_matrix < 0.05, arr.ind=TRUE)
+write.csv(significant_edges, "significant_fc_edges.csv")
+```
+
+```{r}
+# 방법 1: 자동 설치
+if (!require(ggcorrplot)) {
+  install.packages("ggcorrplot")
+  library(ggcorrplot)
+} else {
+  library(ggcorrplot)
+}
+
+# 방법 2: 기본 corrplot만 사용 (이미 설치됨)
+library(corrplot)
+png("final_fc_sig.png", width=1000, height=900)
+
+library(corrplot)  # 이미 설치됨
+png("complete_fc_analysis.png", width=1200, height=1000, res=300)
+corrplot(fc_matrix, method="color", type="upper", order="hclust",
+         addCoef.col="white", tl.cex=0.7, number.cex=0.6,
+         title="✅ rs-fMRI Complete FC Analysis", mar=c(0,0,2,0))
+dev.off()
+cat("✅ ggcorrplot 없이 고품질 PNG 저장 완료!\n")
+```
+
+```{r}
+# 가상 종양 ROI (실제 mask로 대체)
+tumor_roi <- 1:5  # 예: 전두엽 ROI들
+tumor_fc <- cor(t(roi_timeseries[, tumor_roi]))
+corrplot(tumor_fc, title="Tumor Network FC")
+```
+
+```{r}
+cat("✅ 고급 분석 완료!\n")
+cat("파일:", list.files(pattern="metrics|edges|png"), "\n")
+cat("다음: 다중 피험자 or GBM 데이터 적용\n")
+```
+
+```{r}
+library(corrplot)  # 이미 설치됨
+png("complete_fc_analysis.png", width=1200, height=1000, res=300)
+corrplot(fc_matrix, method="color", type="upper", order="hclust",
+         addCoef.col="white", tl.cex=0.7, number.cex=0.6,
+         title="✅ rs-fMRI Complete FC Analysis", mar=c(0,0,2,0))
+dev.off()
+cat("✅ ggcorrplot 없이 고품질 PNG 저장 완료!\n")
+```
+
+```{r}
+summary_table <- data.frame(
+  Step = c("ROIs", "Timepoints", "Mean_FC", "Clustering", "Modularity"),
+  Value = c(ncol(roi_timeseries), nrow(roi_timeseries),
+            round(mean(fc_matrix[upper.tri(fc_matrix)]), 3),
+            round(transitivity(g), 3), round(modularity(cluster_louvain(g)), 3))
+)
+print(summary_table)
+write.csv(summary_table, "final_summary.csv", row.names=FALSE)
+```

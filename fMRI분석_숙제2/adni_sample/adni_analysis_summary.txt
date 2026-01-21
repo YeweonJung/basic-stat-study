@@ -1,0 +1,6 @@
+=== ADNI RS-fMRI 분석 결과 ===
+Date: 1768919244 
+Dimension: 91 x 109 x 91 x 10 
+Voxel coords: 46 54 46 
+TR count: 10 
+BOLD range: -1.362 1.603 

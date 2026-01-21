@@ -1,0 +1,97 @@
+```{r}
+# 새 프로젝트 폴더
+adni_repo <- "~/adni-fmri-complete"
+dir.create(adni_repo, showWarnings=FALSE)
+setwd(adni_repo)
+
+# 현재 ADNI 파일 재생성 (깨끗하게)
+png("voxel_bold_plot.png", width=800, height=600, res=100)
+plot(voxel_bold, type='l', main="RS-fMRI Voxel BOLD", xlab="TR", ylab="Signal")
+dev.off()
+
+write.csv(data.frame(TR=1:length(voxel_bold), BOLD=voxel_bold), "voxel_timeseries.csv", row.names=FALSE)
+
+cat("Dimension:", paste(dim(fmri_img), collapse=" x "), file="analysis_summary.txt")
+cat("\nVoxel:", cx, cy, cz, file="analysis_summary.txt", append=TRUE)
+
+# README
+writeLines(c("# ADNI RS-fMRI 분석\n",
+             "![Plot](voxel_bold_plot.png)\n",
+             "**4D Load ✓ | Voxel Extract ✓**"), "README.md")
+
+cat("✅ 4개 파일 생성:\n")
+list.files()
+```
+
+```{r}
+
+```
+
+```{r}
+# 지금 작업한 파일 목록 확인
+my_files <- list.files(pattern="voxel|adni|csv|png", full.names=TRUE)
+print(my_files)
+
+# 없으면 재생성
+png("01_voxel_plot.png", width=800, height=600)
+plot(voxel_bold, type='l', main="내 첫 fMRI 분석", col="blue")
+dev.off()
+
+write.csv(data.frame(time=1:length(voxel_bold), signal=voxel_bold), "02_data.csv")
+cat("fMRI 분석 완료\n차원:", paste(dim(fmri_img), collapse="x"), file="03_summary.txt")
+
+print("✅ 3개 파일 저장됨!")
+list.files(pattern="[0-9].*")
+```
+
+```{r}
+getwd()  # 현재 작업 디렉토리 출력
+list.files(pattern = "\\.nii")  # .nii/.nii.gz 파일 목록 확인
+```
+
+```{r}
+# 현재 디렉토리 + 하위 폴더에서 .nii.gz 또는 .nii 파일 찾기
+nifti_files <- list.files(
+  path = ".", 
+  pattern = "\\.(nii|nii\\.gz)$", 
+  recursive = TRUE, 
+  full.names = TRUE
+)
+print(nifti_files)  # 4D 파일 이름 확인 (크기 큰 파일이 4D일 가능성 높음)
+```
+
+```{r}
+# BIDS 데이터셋 루트 경로로 변경 (예: D 드라이브나 데이터 폴더)
+bids_root <- "C:/your/BIDS_dataset"  # 실제 경로로 수정
+
+# func 폴더의 4D BOLD 파일 찾기
+bold_files <- list.files(
+  pattern = "task.*bold.*nii",
+  path = bids_root,
+  recursive = TRUE,
+  full.names = TRUE
+)
+print(bold_files)  # 예: sub-01/func/sub-01_task-rest_bold.nii.gz
+```
+
+```{r}
+# 검색 결과에서 첫 4D 파일 선택 (예시)
+file_path <- nifti_files[1]  # 또는 bold_files[1]
+
+if (file.exists(file_path)) {
+  library(oro.nifti)
+  img <- readNIfTI(file_path)
+  cat("성공! 차원:", dim(img), "\n")  # 4번째 차원이 100+ 이면 4D
+} else {
+  cat("여전히 파일 없음\n")
+}
+```
+
+```{r}
+# 예: neuroim2 패키지 내장 4D 데이터 사용
+install.packages("neuroim2")
+library(neuroim2)
+file_name <- system.file("extdata", "global_mask_v4.nii", package = "neuroim2")
+img <- read_vol(file_name)  # 4D 데이터 (64x64x25x4)
+dim(img)
+```
