@@ -5,5 +5,6 @@ https://html-preview.github.io/?url=https://github.com/YeweonJung/basic-stat-stu
 
 # 🩷 3) mean differnces test among more than three groups
 
-# 🩷 4) correlation analysis & linear regression analysis
+# 🩷 4) fMRI
+https://github.com/YeweonJung/basic-stat-study/blob/main/fMRI%EB%B6%84%EC%84%9D_%EC%88%99%EC%A0%9C1/01_voxel_plot.png?raw=true
 
