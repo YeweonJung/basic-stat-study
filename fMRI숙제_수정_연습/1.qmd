@@ -1,0 +1,48 @@
+---
+title: "fMRI 코딩연습"
+format: html
+editor: visual
+---
+
+```{r}
+dims <- c(61, 61, 61, 187) 
+set.seed(42)
+fmri_test <- array(rnorm(prod(dims)), dim=dims) 
+aal3_test <- array(sample(0:116, prod(dims[1:3]), replace=TRUE), dim=dims[1:3])
+
+cat("✅ 테스트 데이터 생성\n")
+cat("dim fmri:", dim(fmri_test), "TR=187\n")
+cat("aal3:", dim(aal3_test), "\n")
+
+
+voxel_ts <- fmri_test[20,20,20,]
+plot(voxel_ts, type="l", main="Voxel BOLD FULL 187 TR", 
+     xlab="TR 1~187", ylab="BOLD", lwd=2, col="blue")
+cat("✅ 187점 플롯 완료\n10번째:", round(voxel_ts[10],3), "\n")
+
+
+mask60
+```
+
+```{r}
+results <- data.frame(
+  Type = c("Voxel[20,20,20]", "ROI60"),
+  NVoxels = c(1, nvox60),
+  TR_length = c(187, 187),
+  Mean_10th_TR = c(round(voxel_ts[10],3), round(roi60_ts[10],3))
+)
+write.csv(results, "analysis_summary.csv", row.names=FALSE)
+
+# 모든 TS 저장
+all_ts <- data.frame(
+  TR = 1:187,
+  Voxel_202020 = voxel_ts,
+  ROI60_mean = roi60_ts
+)
+write.csv(all_ts, "all_timeseries.csv", row.names=FALSE)
+```
+
+```{r}
+getwd()  # 작업 디렉토리 출력 (ex: "/home/user/R_project")
+list.files(pattern = "*.csv|*.png|*.txt")  # 생성된 파일 목록
+```
