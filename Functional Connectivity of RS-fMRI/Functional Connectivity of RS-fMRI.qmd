@@ -1,0 +1,196 @@
+---
+title: "Functional Connectivity of RS-fMRI"
+author: "ROI BOLD 시간 신호로부터 correlation matrix 계산 및 시각화"
+format: html
+editor: visual
+---
+
+```{r}
+set.seed(42)
+n_time <- 100
+n_roi <- 5
+time_series <- matrix(rnorm(n_time * n_roi), n_time, n_roi)
+time_series[,2] <- 0.7 * time_series[,1] + rnorm(n_time, 0, 0.5)  # 연결성 추가하기기
+
+corr_matrix <- cor(time_series)
+diag(corr_matrix) <- 0  # 자기상관 제거하는 것것
+
+# 시각화하는 방법!
+image(1:n_roi, 1:n_roi, corr_matrix, zlim=c(-1,1), col=rev(heat.colors(101)),
+      xlab="ROI", ylab="ROI", main="RS-fMRI Correlation Matrix")
+```
+
+## 1-1) Fisher Z Transformation이란
+
+Fisher Z 변환은 Pearson 상관계수 r의 치우친 분포를 정규분포로 변환하는 수학적 변환입니다. 상관계수 r은 \[-1,1\] 범위에서 비대칭이지만, Z 변환 후 평균 0, 분산 1에 가까운 정규분포를 따릅니다.
+
+## 1-2) 수식적 정의
+
+z=12ln⁡(1+r1−r)=tanh⁡−1(r)z=21ln(1−r1+r)=tanh−1(r)\
+r = 0일 때 z = 0, r 증가 시 z 급격히 증가 (예: r=0.4 → z≈0.424).
+
+## 1-3) 왜 하는가, 언제 하는가
+
+-   **왜**: r의 샘플링 분산이 r 값에 의존 (Var(r)=1−r2n−2Var(r)=n−21−r2) → 그룹 비교/통계검정 왜곡. Z 변환 후 분산 안정화 ≈1/n.
+
+-   **언제**: RS-fMRI FC 분석에서 그룹 비교(t-test/ANOVA), 메타분석, 신경영상 통계 전.
+
+## 1-4) RS-fMRI correlation에 적용
+
+기존 corr 행렬에 atanh() 적용 (R 기본 함수).\
+
+```{r}
+# 파일명: "rs_fmri_fisher_z_complete.R"
+# 샘플 RS-fMRI ROI 시계열 데이터 생성 (10 ROI x 200 timepoints)
+set.seed(123)
+n_roi <- 10
+n_time <- 200
+rs_fmri_data <- matrix(rnorm(n_roi * n_time), n_roi, n_time)
+
+# 1-4) 현재 RS-fMRI로 구한 correlation에 Fisher Z 변환 적용
+cor_matrix <- cor(rs_fmri_data)
+print("RS-fMRI Correlation 행렬 상위 3x3:")
+print(round(cor_matrix[1:3,1:3], 3))
+
+# Fisher Z 변환: r → z = atanh(r) 적용
+z_matrix <- atanh(cor_matrix)
+
+# 1-5) Z 행렬 원소 확인
+upper_z <- z_matrix[upper.tri(z_matrix)]
+print("Z 변환 원소 통계:")
+summary(upper_z)
+print(paste("Z 원소 범위:", round(min(upper_z), 3), "~", round(max(upper_z), 3)))
+
+# 1-5) 원소 print =====
+print("1-5-2) Z 행렬 원소 테이블 형식 (ROI-A, B, r, z, p, significance):")
+df_results <- data.frame(
+  ROI_A = character(),
+  ROI_B = character(),
+  raw_correlation = numeric(),
+  fisher_z = numeric(),
+  p_value = numeric(),
+  significance = character(),
+  stringsAsFactors = FALSE
+)
+
+for(i in 1:(n_roi-1)) {
+  for(j in (i+1):n_roi) {
+    ct <- cor.test(rs_fmri_data[i,], rs_fmri_data[j,])
+    z_val <- atanh(ct$estimate)
+    
+    sig <- ifelse(ct$p.value < 0.001, "***",
+             ifelse(ct$p.value < 0.01, "**",
+               ifelse(ct$p.value < 0.05, "*", "not significant")))
+    
+    df_results <- rbind(df_results, data.frame(
+      ROI_A = paste0("ROI", i),
+      ROI_B = paste0("ROI", j),
+      raw_correlation = round(ct$estimate, 3),
+      fisher_z = round(z_val, 3),
+      p_value = format(ct$p.value, scientific=TRUE, digits=3),
+      significance = sig
+    ))
+  }
+}
+print(df_results[1:min(10, nrow(df_results)), ])  
+print(paste("총", nrow(df_results), "개 ROI 쌍"))
+
+# 역변환 확인
+print("tanh(z) == 원래 r 확인 (상위 3x3):")
+print(round(tanh(z_matrix)[1:3,1:3], 3))
+
+# 대각선 처리: Z 행렬 시각화를 위해 NA로 설정 (corrplot이 자동 처리)
+diag(z_matrix) <- NA
+
+# 1-6) 변환 후 행렬 시각화
+library(corrplot)
+
+# 행렬 시각화
+library(corrplot)
+
+corrplot(cor_matrix, method="color", type="upper", order="hclust", 
+         title="1-4. RS-fMRI Correlation Matrix", tl.cex=0.8, mar=c(0,0,2,0))
+
+z_clipped <- pmin(pmax(z_matrix, -3), 3)
+corrplot(z_clipped, method="color", type="upper", order="hclust", 
+         title="1-6. Fisher Z Matrix (-3 ~ 3)", 
+         is.corr=FALSE, col.lim=c(-3,3), tl.cex=0.8, mar=c(0,0,2,0))
+```
+
+## 2) Correlation Analysis 섹션
+
+## 상관분석 정의와 목적
+
+상관분석은 두 변수 간 선형 관계의 강도와 방향을 측정하는 통계 방법으로, RS-fMRI에서 ROI BOLD 신호 간 기능적 연결성(FC)을 평가할 때 사용합니다.
+
+## 가정 조건
+
+-   선형성: 변수 간 직선 관계 가정.
+
+-   독립성: 관측치 독립.
+
+-   등분산성: 잔차 분산 일정.
+
+-   정규성: 상관계수 샘플 분포 정규(대표본에서는 약화).​
+
+## 데이터프레임 vs 행렬
+
+R에서 데이터프레임은 서로 다른 데이터 타입(숫자, 문자, 팩터)을 혼합 저장하는 2차원 구조로 열 이름 지원; 행렬은 단일 타입(numeric)만 저장하며 고속 연산에 최적화됩니다.
+
+## 통계적 가설 검정과 p값
+
+가설 검정은 귀무가설(H0: ρ=0, 상관 없음)을 대상으로 대립가설(Ha: ρ≠0)을 검증하는 과정입니다. p값은 H0이 참일 때 관측 결과(또는 더 극단)가 나타날 확률로, p\<0.05면 H0 기각(유의).
+
+## 선형 관계와 p값 해석
+
+## 2-1) 선형 관계 의미
+
+A와 B ROI BOLD 신호가 직선 형태(y = a + bx)로 동반 변동하는 관계를 의미하며, Pearson r 값 범위 -1(완벽 음선형) \~ +1(완벽 양선형)입니다.​
+
+## 2-2) p값 의미
+
+-   **p값 작음(\<0.05)**: H0(상관 없음) 기각 → ROI 간 유의한 선형 FC 존재.
+
+-   **p값 큼(\>0.05)**: H0 채택 → 우연으로 볼 수 있는 상관.
+
+-   **기준**: α=0.05 (사회과학/신경영상 표준).
+
+## 6) 데이터프레임 테이블 출력만 따로 출력
+
+```{r}
+set.seed(123)
+n_roi <- 10
+n_time <- 200
+rs_fmri_data <- matrix(rnorm(n_roi * n_time), n_roi, n_time)
+
+# 과제6) ============================================
+df_results <- data.frame(
+  ROI_A = character(),
+  ROI_B = character(),
+  `raw correlation` = numeric(),
+  `Fisher Z` = numeric(),
+  `p_value` = character(),
+  significance = character(),
+  stringsAsFactors = FALSE
+)
+
+for(i in 1:(n_roi-1)) {
+  for(j in (i+1):n_roi) {
+    ct <- cor.test(rs_fmri_data[i,], rs_fmri_data[j,])
+    
+    df_results <- rbind(df_results, data.frame(
+      ROI_A = paste0("ROI", i),
+      ROI_B = paste0("ROI", j),
+      `raw correlation` = round(ct$estimate, 3),
+      `Fisher Z` = round(atanh(ct$estimate), 3),
+      `p_value` = format(ct$p.value, scientific=TRUE, digits=3),
+      significance = ifelse(ct$p.value < 0.001, "***",
+                       ifelse(ct$p.value < 0.01, "**",
+                         ifelse(ct$p.value < 0.05, "*", "not significant")))
+    ))
+  }
+}
+
+print("과제 6) Correlation 분석 결과 테이블 (45 ROI 쌍):")
+print(df_results)
+```
