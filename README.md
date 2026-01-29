@@ -1,6 +1,6 @@
 # basic-stat-study
 # 🩷 1) 동전 던지기 시뮬레이션 숙제
-R코드 (https://html-preview.github.io/?url=https://github.com/YeweonJung/basic-stat-study/blob/main/dongjeondeonjigi.qmd)
+R코드 (https://github.com/YeweonJung/basic-stat-study/blob/b3d077110dff8709a3c70f5618aa8bfb8158ab55/dongjeondeonjigi.qmd)
 <img width="800" height="600" alt="my_plot" src="https://github.com/user-attachments/assets/e8b8a382-be47-4a39-8f1f-f17941972984" />
 
 # 🩷 2) Functional Connectivity of RS-fMRI 숙제
