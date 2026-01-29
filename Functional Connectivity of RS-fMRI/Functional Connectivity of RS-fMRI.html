@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="ROI BOLD 시간 신호로부터 correlation matrix 계산 및 시각화">
+
+<title>Functional Connectivity of RS-fMRI</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="Functional Connectivity of RS-fMRI_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Functional Connectivity of RS-fMRI_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="Functional Connectivity of RS-fMRI_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="Functional Connectivity of RS-fMRI_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="Functional Connectivity of RS-fMRI_files/libs/quarto-html/popper.min.js"></script>
+<script src="Functional Connectivity of RS-fMRI_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Functional Connectivity of RS-fMRI_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Functional Connectivity of RS-fMRI_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Functional Connectivity of RS-fMRI_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Functional Connectivity of RS-fMRI_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Functional Connectivity of RS-fMRI_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Functional Connectivity of RS-fMRI_files/libs/bootstrap/bootstrap-9e3ffae467580fdb927a41352e75a2e0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Functional Connectivity of RS-fMRI</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>ROI BOLD 시간 신호로부터 correlation matrix 계산 및 시각화 </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>n_time <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>n_roi <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>time_series <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n_time <span class="sc">*</span> n_roi), n_time, n_roi)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>time_series[,<span class="dv">2</span>] <span class="ot">&lt;-</span> <span class="fl">0.7</span> <span class="sc">*</span> time_series[,<span class="dv">1</span>] <span class="sc">+</span> <span class="fu">rnorm</span>(n_time, <span class="dv">0</span>, <span class="fl">0.5</span>)  <span class="co"># 연결성 추가하기기</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>corr_matrix <span class="ot">&lt;-</span> <span class="fu">cor</span>(time_series)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">diag</span>(corr_matrix) <span class="ot">&lt;-</span> <span class="dv">0</span>  <span class="co"># 자기상관 제거하는 것것</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 시각화하는 방법!</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">image</span>(<span class="dv">1</span><span class="sc">:</span>n_roi, <span class="dv">1</span><span class="sc">:</span>n_roi, corr_matrix, <span class="at">zlim=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>,<span class="dv">1</span>), <span class="at">col=</span><span class="fu">rev</span>(<span class="fu">heat.colors</span>(<span class="dv">101</span>)),</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">xlab=</span><span class="st">"ROI"</span>, <span class="at">ylab=</span><span class="st">"ROI"</span>, <span class="at">main=</span><span class="st">"RS-fMRI Correlation Matrix"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Functional-Connectivity-of-RS-fMRI_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="fisher-z-transformation이란" class="level2">
+<h2 class="anchored" data-anchor-id="fisher-z-transformation이란">1-1) Fisher Z Transformation이란</h2>
+<p>Fisher Z 변환은 Pearson 상관계수 r의 치우친 분포를 정규분포로 변환하는 수학적 변환입니다. 상관계수 r은 [-1,1] 범위에서 비대칭이지만, Z 변환 후 평균 0, 분산 1에 가까운 정규분포를 따릅니다.</p>
+</section>
+<section id="수식적-정의" class="level2">
+<h2 class="anchored" data-anchor-id="수식적-정의">1-2) 수식적 정의</h2>
+<p>z=12ln⁡(1+r1−r)=tanh⁡−1(r)z=21ln(1−r1+r)=tanh−1(r)<br>
+r = 0일 때 z = 0, r 증가 시 z 급격히 증가 (예: r=0.4 → z≈0.424).</p>
+</section>
+<section id="왜-하는가-언제-하는가" class="level2">
+<h2 class="anchored" data-anchor-id="왜-하는가-언제-하는가">1-3) 왜 하는가, 언제 하는가</h2>
+<ul>
+<li><p><strong>왜</strong>: r의 샘플링 분산이 r 값에 의존 (Var(r)=1−r2n−2Var(r)=n−21−r2) → 그룹 비교/통계검정 왜곡. Z 변환 후 분산 안정화 ≈1/n.</p></li>
+<li><p><strong>언제</strong>: RS-fMRI FC 분석에서 그룹 비교(t-test/ANOVA), 메타분석, 신경영상 통계 전.</p></li>
+</ul>
+</section>
+<section id="rs-fmri-correlation에-적용" class="level2">
+<h2 class="anchored" data-anchor-id="rs-fmri-correlation에-적용">1-4) RS-fMRI correlation에 적용</h2>
+<p>기존 corr 행렬에 atanh() 적용 (R 기본 함수).<br>
+</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 파일명: "rs_fmri_fisher_z_complete.R"</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 샘플 RS-fMRI ROI 시계열 데이터 생성 (10 ROI x 200 timepoints)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>n_roi <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>n_time <span class="ot">&lt;-</span> <span class="dv">200</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>rs_fmri_data <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n_roi <span class="sc">*</span> n_time), n_roi, n_time)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 1-4) 현재 RS-fMRI로 구한 correlation에 Fisher Z 변환 적용</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>cor_matrix <span class="ot">&lt;-</span> <span class="fu">cor</span>(rs_fmri_data)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">"RS-fMRI Correlation 행렬 상위 3x3:"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "RS-fMRI Correlation 행렬 상위 3x3:"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">round</span>(cor_matrix[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>,<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="dv">3</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>       [,1]   [,2]   [,3]
+[1,]  1.000  0.578 -0.406
+[2,]  0.578  1.000 -0.567
+[3,] -0.406 -0.567  1.000</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fisher Z 변환: r → z = atanh(r) 적용</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>z_matrix <span class="ot">&lt;-</span> <span class="fu">atanh</span>(cor_matrix)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 1-5) Z 행렬 원소 확인</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>upper_z <span class="ot">&lt;-</span> z_matrix[<span class="fu">upper.tri</span>(z_matrix)]</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">"Z 변환 원소 통계:"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Z 변환 원소 통계:"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(upper_z)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-1.660743 -0.250423 -0.000783 -0.003465  0.243961  1.755938 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">"Z 원소 범위:"</span>, <span class="fu">round</span>(<span class="fu">min</span>(upper_z), <span class="dv">3</span>), <span class="st">"~"</span>, <span class="fu">round</span>(<span class="fu">max</span>(upper_z), <span class="dv">3</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Z 원소 범위: -1.661 ~ 1.756"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1-5) 원소 print =====</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">"1-5-2) Z 행렬 원소 테이블 형식 (ROI-A, B, r, z, p, significance):"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "1-5-2) Z 행렬 원소 테이블 형식 (ROI-A, B, r, z, p, significance):"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>df_results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">ROI_A =</span> <span class="fu">character</span>(),</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">ROI_B =</span> <span class="fu">character</span>(),</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">raw_correlation =</span> <span class="fu">numeric</span>(),</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">fisher_z =</span> <span class="fu">numeric</span>(),</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">p_value =</span> <span class="fu">numeric</span>(),</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">significance =</span> <span class="fu">character</span>(),</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>(n_roi<span class="dv">-1</span>)) {</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> (i<span class="sc">+</span><span class="dv">1</span>)<span class="sc">:</span>n_roi) {</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    ct <span class="ot">&lt;-</span> <span class="fu">cor.test</span>(rs_fmri_data[i,], rs_fmri_data[j,])</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    z_val <span class="ot">&lt;-</span> <span class="fu">atanh</span>(ct<span class="sc">$</span>estimate)</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>    sig <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(ct<span class="sc">$</span>p.value <span class="sc">&lt;</span> <span class="fl">0.001</span>, <span class="st">"***"</span>,</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>             <span class="fu">ifelse</span>(ct<span class="sc">$</span>p.value <span class="sc">&lt;</span> <span class="fl">0.01</span>, <span class="st">"**"</span>,</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>               <span class="fu">ifelse</span>(ct<span class="sc">$</span>p.value <span class="sc">&lt;</span> <span class="fl">0.05</span>, <span class="st">"*"</span>, <span class="st">"not significant"</span>)))</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    df_results <span class="ot">&lt;-</span> <span class="fu">rbind</span>(df_results, <span class="fu">data.frame</span>(</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>      <span class="at">ROI_A =</span> <span class="fu">paste0</span>(<span class="st">"ROI"</span>, i),</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>      <span class="at">ROI_B =</span> <span class="fu">paste0</span>(<span class="st">"ROI"</span>, j),</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>      <span class="at">raw_correlation =</span> <span class="fu">round</span>(ct<span class="sc">$</span>estimate, <span class="dv">3</span>),</span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>      <span class="at">fisher_z =</span> <span class="fu">round</span>(z_val, <span class="dv">3</span>),</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>      <span class="at">p_value =</span> <span class="fu">format</span>(ct<span class="sc">$</span>p.value, <span class="at">scientific=</span><span class="cn">TRUE</span>, <span class="at">digits=</span><span class="dv">3</span>),</span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>      <span class="at">significance =</span> sig</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    ))</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df_results[<span class="dv">1</span><span class="sc">:</span><span class="fu">min</span>(<span class="dv">10</span>, <span class="fu">nrow</span>(df_results)), ])  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>     ROI_A ROI_B raw_correlation fisher_z  p_value    significance
+cor   ROI1  ROI2          -0.073   -0.073 3.02e-01 not significant
+cor1  ROI1  ROI3          -0.072   -0.072 3.11e-01 not significant
+cor2  ROI1  ROI4           0.021    0.021 7.67e-01 not significant
+cor3  ROI1  ROI5          -0.041   -0.042  5.6e-01 not significant
+cor4  ROI1  ROI6          -0.012   -0.012 8.69e-01 not significant
+cor5  ROI1  ROI7           0.037    0.037 6.05e-01 not significant
+cor6  ROI1  ROI8          -0.070   -0.070 3.28e-01 not significant
+cor7  ROI1  ROI9           0.045    0.046 5.22e-01 not significant
+cor8  ROI1 ROI10           0.111    0.111 1.18e-01 not significant
+cor9  ROI2  ROI3           0.001    0.001 9.85e-01 not significant</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">"총"</span>, <span class="fu">nrow</span>(df_results), <span class="st">"개 ROI 쌍"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "총 45 개 ROI 쌍"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 역변환 확인</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">"tanh(z) == 원래 r 확인 (상위 3x3):"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "tanh(z) == 원래 r 확인 (상위 3x3):"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">round</span>(<span class="fu">tanh</span>(z_matrix)[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>,<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="dv">3</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>       [,1]   [,2]   [,3]
+[1,]  1.000  0.578 -0.406
+[2,]  0.578  1.000 -0.567
+[3,] -0.406 -0.567  1.000</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 대각선 처리: Z 행렬 시각화를 위해 NA로 설정 (corrplot이 자동 처리)</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">diag</span>(z_matrix) <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 1-6) 변환 후 행렬 시각화</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(corrplot)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>corrplot 0.95 loaded</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 행렬 시각화</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(corrplot)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">corrplot</span>(cor_matrix, <span class="at">method=</span><span class="st">"color"</span>, <span class="at">type=</span><span class="st">"upper"</span>, <span class="at">order=</span><span class="st">"hclust"</span>, </span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">title=</span><span class="st">"1-4. RS-fMRI Correlation Matrix"</span>, <span class="at">tl.cex=</span><span class="fl">0.8</span>, <span class="at">mar=</span><span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">2</span>,<span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Functional-Connectivity-of-RS-fMRI_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>z_clipped <span class="ot">&lt;-</span> <span class="fu">pmin</span>(<span class="fu">pmax</span>(z_matrix, <span class="sc">-</span><span class="dv">3</span>), <span class="dv">3</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="fu">corrplot</span>(z_clipped, <span class="at">method=</span><span class="st">"color"</span>, <span class="at">type=</span><span class="st">"upper"</span>, <span class="at">order=</span><span class="st">"hclust"</span>, </span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">title=</span><span class="st">"1-6. Fisher Z Matrix (-3 ~ 3)"</span>, </span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">is.corr=</span><span class="cn">FALSE</span>, <span class="at">col.lim=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">3</span>,<span class="dv">3</span>), <span class="at">tl.cex=</span><span class="fl">0.8</span>, <span class="at">mar=</span><span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">0</span>,<span class="dv">2</span>,<span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Functional-Connectivity-of-RS-fMRI_files/figure-html/unnamed-chunk-2-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="correlation-analysis-섹션" class="level2">
+<h2 class="anchored" data-anchor-id="correlation-analysis-섹션">2) Correlation Analysis 섹션</h2>
+</section>
+<section id="상관분석-정의와-목적" class="level2">
+<h2 class="anchored" data-anchor-id="상관분석-정의와-목적">상관분석 정의와 목적</h2>
+<p>상관분석은 두 변수 간 선형 관계의 강도와 방향을 측정하는 통계 방법으로, RS-fMRI에서 ROI BOLD 신호 간 기능적 연결성(FC)을 평가할 때 사용합니다.</p>
+</section>
+<section id="가정-조건" class="level2">
+<h2 class="anchored" data-anchor-id="가정-조건">가정 조건</h2>
+<ul>
+<li><p>선형성: 변수 간 직선 관계 가정.</p></li>
+<li><p>독립성: 관측치 독립.</p></li>
+<li><p>등분산성: 잔차 분산 일정.</p></li>
+<li><p>정규성: 상관계수 샘플 분포 정규(대표본에서는 약화).​</p></li>
+</ul>
+</section>
+<section id="데이터프레임-vs-행렬" class="level2">
+<h2 class="anchored" data-anchor-id="데이터프레임-vs-행렬">데이터프레임 vs 행렬</h2>
+<p>R에서 데이터프레임은 서로 다른 데이터 타입(숫자, 문자, 팩터)을 혼합 저장하는 2차원 구조로 열 이름 지원; 행렬은 단일 타입(numeric)만 저장하며 고속 연산에 최적화됩니다.</p>
+</section>
+<section id="통계적-가설-검정과-p값" class="level2">
+<h2 class="anchored" data-anchor-id="통계적-가설-검정과-p값">통계적 가설 검정과 p값</h2>
+<p>가설 검정은 귀무가설(H0: ρ=0, 상관 없음)을 대상으로 대립가설(Ha: ρ≠0)을 검증하는 과정입니다. p값은 H0이 참일 때 관측 결과(또는 더 극단)가 나타날 확률로, p&lt;0.05면 H0 기각(유의).</p>
+</section>
+<section id="선형-관계와-p값-해석" class="level2">
+<h2 class="anchored" data-anchor-id="선형-관계와-p값-해석">선형 관계와 p값 해석</h2>
+</section>
+<section id="선형-관계-의미" class="level2">
+<h2 class="anchored" data-anchor-id="선형-관계-의미">2-1) 선형 관계 의미</h2>
+<p>A와 B ROI BOLD 신호가 직선 형태(y = a + bx)로 동반 변동하는 관계를 의미하며, Pearson r 값 범위 -1(완벽 음선형) ~ +1(완벽 양선형)입니다.​</p>
+</section>
+<section id="p값-의미" class="level2">
+<h2 class="anchored" data-anchor-id="p값-의미">2-2) p값 의미</h2>
+<ul>
+<li><p><strong>p값 작음(&lt;0.05)</strong>: H0(상관 없음) 기각 → ROI 간 유의한 선형 FC 존재.</p></li>
+<li><p><strong>p값 큼(&gt;0.05)</strong>: H0 채택 → 우연으로 볼 수 있는 상관.</p></li>
+<li><p><strong>기준</strong>: α=0.05 (사회과학/신경영상 표준).</p></li>
+</ul>
+</section>
+<section id="데이터프레임-테이블-출력만-따로-출력" class="level2">
+<h2 class="anchored" data-anchor-id="데이터프레임-테이블-출력만-따로-출력">6) 데이터프레임 테이블 출력만 따로 출력</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>n_roi <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>n_time <span class="ot">&lt;-</span> <span class="dv">200</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>rs_fmri_data <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n_roi <span class="sc">*</span> n_time), n_roi, n_time)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 과제6) ============================================</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>df_results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">ROI_A =</span> <span class="fu">character</span>(),</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">ROI_B =</span> <span class="fu">character</span>(),</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">raw correlation</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">numeric</span>(),</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Fisher Z</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">numeric</span>(),</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">p_value</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">character</span>(),</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">significance =</span> <span class="fu">character</span>(),</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>(n_roi<span class="dv">-1</span>)) {</span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> (i<span class="sc">+</span><span class="dv">1</span>)<span class="sc">:</span>n_roi) {</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>    ct <span class="ot">&lt;-</span> <span class="fu">cor.test</span>(rs_fmri_data[i,], rs_fmri_data[j,])</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>    df_results <span class="ot">&lt;-</span> <span class="fu">rbind</span>(df_results, <span class="fu">data.frame</span>(</span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>      <span class="at">ROI_A =</span> <span class="fu">paste0</span>(<span class="st">"ROI"</span>, i),</span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>      <span class="at">ROI_B =</span> <span class="fu">paste0</span>(<span class="st">"ROI"</span>, j),</span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a>      <span class="st">`</span><span class="at">raw correlation</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(ct<span class="sc">$</span>estimate, <span class="dv">3</span>),</span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>      <span class="st">`</span><span class="at">Fisher Z</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(<span class="fu">atanh</span>(ct<span class="sc">$</span>estimate), <span class="dv">3</span>),</span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a>      <span class="st">`</span><span class="at">p_value</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">format</span>(ct<span class="sc">$</span>p.value, <span class="at">scientific=</span><span class="cn">TRUE</span>, <span class="at">digits=</span><span class="dv">3</span>),</span>
+<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a>      <span class="at">significance =</span> <span class="fu">ifelse</span>(ct<span class="sc">$</span>p.value <span class="sc">&lt;</span> <span class="fl">0.001</span>, <span class="st">"***"</span>,</span>
+<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a>                       <span class="fu">ifelse</span>(ct<span class="sc">$</span>p.value <span class="sc">&lt;</span> <span class="fl">0.01</span>, <span class="st">"**"</span>,</span>
+<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a>                         <span class="fu">ifelse</span>(ct<span class="sc">$</span>p.value <span class="sc">&lt;</span> <span class="fl">0.05</span>, <span class="st">"*"</span>, <span class="st">"not significant"</span>)))</span>
+<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a>    ))</span>
+<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="st">"과제 6) Correlation 분석 결과 테이블 (45 ROI 쌍):"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "과제 6) Correlation 분석 결과 테이블 (45 ROI 쌍):"</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df_results)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      ROI_A ROI_B raw.correlation Fisher.Z  p_value    significance
+cor    ROI1  ROI2          -0.073   -0.073 3.02e-01 not significant
+cor1   ROI1  ROI3          -0.072   -0.072 3.11e-01 not significant
+cor2   ROI1  ROI4           0.021    0.021 7.67e-01 not significant
+cor3   ROI1  ROI5          -0.041   -0.042  5.6e-01 not significant
+cor4   ROI1  ROI6          -0.012   -0.012 8.69e-01 not significant
+cor5   ROI1  ROI7           0.037    0.037 6.05e-01 not significant
+cor6   ROI1  ROI8          -0.070   -0.070 3.28e-01 not significant
+cor7   ROI1  ROI9           0.045    0.046 5.22e-01 not significant
+cor8   ROI1 ROI10           0.111    0.111 1.18e-01 not significant
+cor9   ROI2  ROI3           0.001    0.001 9.85e-01 not significant
+cor10  ROI2  ROI4          -0.098   -0.099 1.66e-01 not significant
+cor11  ROI2  ROI5          -0.043   -0.043 5.44e-01 not significant
+cor12  ROI2  ROI6          -0.079   -0.080 2.63e-01 not significant
+cor13  ROI2  ROI7           0.069    0.069 3.32e-01 not significant
+cor14  ROI2  ROI8          -0.011   -0.011  8.8e-01 not significant
+cor15  ROI2  ROI9           0.144    0.145 4.14e-02               *
+cor16  ROI2 ROI10           0.043    0.043 5.44e-01 not significant
+cor17  ROI3  ROI4          -0.088   -0.089 2.14e-01 not significant
+cor18  ROI3  ROI5          -0.053   -0.053 4.54e-01 not significant
+cor19  ROI3  ROI6           0.000    0.000    1e+00 not significant
+cor20  ROI3  ROI7           0.093    0.094 1.88e-01 not significant
+cor21  ROI3  ROI8          -0.063   -0.063 3.76e-01 not significant
+cor22  ROI3  ROI9          -0.027   -0.027    7e-01 not significant
+cor23  ROI3 ROI10          -0.115   -0.115 1.06e-01 not significant
+cor24  ROI4  ROI5           0.019    0.019 7.85e-01 not significant
+cor25  ROI4  ROI6          -0.055   -0.055 4.36e-01 not significant
+cor26  ROI4  ROI7           0.083    0.083 2.43e-01 not significant
+cor27  ROI4  ROI8          -0.057   -0.057 4.22e-01 not significant
+cor28  ROI4  ROI9           0.110    0.111  1.2e-01 not significant
+cor29  ROI4 ROI10          -0.036   -0.036 6.13e-01 not significant
+cor30  ROI5  ROI6          -0.119   -0.120 9.29e-02 not significant
+cor31  ROI5  ROI7           0.026    0.026 7.19e-01 not significant
+cor32  ROI5  ROI8          -0.050   -0.050 4.86e-01 not significant
+cor33  ROI5  ROI9           0.010    0.010 8.89e-01 not significant
+cor34  ROI5 ROI10           0.043    0.043 5.45e-01 not significant
+cor35  ROI6  ROI7           0.010    0.010 8.89e-01 not significant
+cor36  ROI6  ROI8          -0.035   -0.035 6.23e-01 not significant
+cor37  ROI6  ROI9           0.029    0.029 6.79e-01 not significant
+cor38  ROI6 ROI10          -0.028   -0.028 6.91e-01 not significant
+cor39  ROI7  ROI8           0.010    0.010 8.91e-01 not significant
+cor40  ROI7  ROI9          -0.029   -0.029 6.88e-01 not significant
+cor41  ROI7 ROI10           0.066    0.066 3.51e-01 not significant
+cor42  ROI8  ROI9           0.023    0.023 7.47e-01 not significant
+cor43  ROI8 ROI10          -0.009   -0.009 8.99e-01 not significant
+cor44  ROI9 ROI10          -0.065   -0.066 3.57e-01 not significant</code></pre>
+</div>
+</div>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
