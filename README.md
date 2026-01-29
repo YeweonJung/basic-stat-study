@@ -1,6 +1,6 @@
 # basic-stat-study
 # 🩷 1) 동전 던지기 시뮬레이션 숙제
-https://github.com/YeweonJung/basic-stat-study/blob/6f2cbfeea133df03da85d0c690d37f2fa3fdf933/my_plot.png
+R코드 ()
 # 🩷 2) Functional Connectivity of RS-fMRI 숙제
 
 # 🩷 3) mean differnces test among more than three groups
