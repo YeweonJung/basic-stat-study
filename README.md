@@ -1,7 +1,7 @@
 # basic-stat-study
-# 🩷 1) statistical summary on dataset
+# 🩷 1) 동전 던지기 시뮬레이션 숙
 https://html-preview.github.io/?url=https://github.com/YeweonJung/basic-stat-study/blob/main/day1_yw.html
-# 🩷 2) mean differnce test between two groups
+# 🩷 2) Functional Connectivity of RS-fMRI 숙
 
 # 🩷 3) mean differnces test among more than three groups
 
