@@ -1,0 +1,154 @@
+---
+title: "동전던지기 추가숙제"
+format: 
+  html:
+    embed-resources: true  
+    theme: default
+    toc: true
+    toc-depth: 6
+engine: knitr
+editor: visual
+---
+
+# 1번문제
+
+```{r}
+x = c(684, 390, 331, 471, 260, 279, 252, 68, 2055, 1145, 879, 93, 119, 1124, 553, 327, 652, 954, 590, 620, 3200, 594, 450, 515, 890, 452, 680, 480, 740, 715)
+mean(x)
+```
+
+# 2번문제
+
+```{r}
+median(x)
+```
+
+# 3번문제
+
+```{r}
+sd(x)
+```
+
+# 4번문제
+
+```{r}
+var(x)
+```
+
+# 5번문제
+
+```{r}
+quantile(x)
+```
+
+# Boxplot 만들기
+
+### (1)
+
+```{r}
+boxplot(x)
+```
+
+### (2)
+
+```{r}
+new_x = c(684, 390, 331, 471, 260, 279, 252, 68, 1145, 879, 93, 119, 1124, 553, 327, 652, 954, 590, 620, 594, 450, 515, 890, 452, 680, 480, 740, 715)
+boxplot(new_x)
+```
+
+# 6번문제
+
+```{r}
+score <- c(21, 27, 32, 41, 41, 42, 43, 44, 44, 45, 52, 52, 53, 54, 56, 56, 57, 58, 59, 59, 59, 61, 62, 62,62,63,63,63,63,63,63,64,64,64,65,65,67,68,68,69,71,75,76,76,77,78,79,84,87,88,89,92,98)
+freq <- table(score)
+print(freq)
+```
+
+```{r}
+mode <- as.numeric(names(which.max(freq)))
+print(mode);median(score)
+```
+
+```{r}
+quantile(score, probs = c(0.25, 0.75))
+```
+
+```{r}
+print(sprintf("%.1f%%", mean(score <= 40) * 100))
+```
+
+```{r}
+print(sprintf("%.1f%%", mean(score >= 70) * 100))
+```
+
+# overall mean
+
+```{r}
+n <- c(20, 45, 30, 50, 15)
+avg <- c(79, 80, 75, 85, 90)
+overall_mean <- weighted.mean(avg, n)
+
+overall_mean
+```
+
+# 동전던지기 0.1
+
+```{r}
+set.seed(123)
+n <- 10000
+p <- 0.1
+
+p
+```
+
+```{r}
+coin <- rbinom(n = n, size = 1, prob = p)
+cum_heads <- cumsum(coin) / seq_len(n)
+plot(
+  cum_heads,
+  type = "l",
+  col = "green",
+  lwd = 2,
+  xlab = "Number of Tosses",
+  ylab = "Cumulative Proportion of Heads",
+  main = paste0(
+    "Coin Toss Simulation (p = ", round(p, 5), ")"
+  )
+)
+
+abline(h = p, col = "blue", lwd = 2, lty = 2)
+```
+
+# 동전던지기 0.01
+
+```{r}
+set.seed(123)
+n <- 10000
+p <- 0.01
+
+p
+```
+
+```{r}
+coin <- rbinom(n = n, size = 1, prob = p)
+cum_heads <- cumsum(coin) / seq_len(n)
+plot(
+  cum_heads,
+  type = "l",
+  col = "green",
+  lwd = 2,
+  xlab = "Number of Tosses",
+  ylab = "Cumulative Proportion of Heads",
+  main = paste0(
+    "Coin Toss Simulation (p = ", round(p, 3), ")"
+  )
+)
+
+abline(h = p, col = "blue", lwd = 2, lty = 2)
+```
+
+# 나의 생각
+
+동전 시뮬레이션 결과는 특히 p=0.1과 p=0.01처럼 낮은 확률에서 큰 수의 법칙(LLN) 나타납니다. 낮은 p에서 초기 극심한 변동에도 불구하고 장기적으로 기대값에 수렴하는 모습을 볼 수 있습니다.\
+
+이 결과는 인내를 상징한다고 생각합니다. p=0.1은 수백\~수천 회로 비교적 빨리 안정되지만, p=0.01은 수만 회가 필요해 희귀 사건 분석 시 작은 데이터로 섣부른 판단을 경계하게 만듭니다. 결국 많은 반복(충분한 data)이 진리를 밝히는 가장 주요한 key라고 생각합니다.
