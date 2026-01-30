@@ -10,3 +10,5 @@ R코드 (https://html-preview.github.io/?url=https://github.com/YeweonJung/basic
 <img width="1126" height="696" alt="RS-fMRI correlation matrix" src="https://github.com/user-attachments/assets/03df65e9-cc78-4d7e-8681-0b517eb33c22" />
 # 🩷 4) Fisher Z matrix
 <img width="1126" height="696" alt="fisher Z matrix" src="https://github.com/user-attachments/assets/6c7262a0-7988-45cd-966b-0fe54af86584" />
+# 🩷 5) 동전던지기 추가 숙제
+https://html-preview.github.io/?url=https://raw.githubusercontent.com/YeweonJung/basic-stat-study/refs/heads/main/%EB%8F%99%EC%A0%84%EB%8D%98%EC%A7%80%EA%B8%B0/%EB%8F%99%EC%A0%84%EB%8D%98%EC%A7%80%EA%B8%B0%20%EC%B6%94%EA%B0%80%EC%88%99%EC%A0%9C.html
